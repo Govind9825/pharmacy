@@ -1,35 +1,71 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function PrescriptionDetailPage() {
   const [prescription, setPrescription] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { id } = useParams();
   const router = useRouter();
 
+  // Function to extract ID from URL
+  const getPrescriptionId = () => {
+    if (typeof window !== 'undefined') {
+      const pathParts = window.location.pathname.split('/');
+      return pathParts[pathParts.length - 1]; // Get the last part of the URL
+    }
+    return null;
+  };
+
   useEffect(() => {
+    const prescriptionId = getPrescriptionId();
+    if (!prescriptionId || isNaN(prescriptionId)) {
+      setLoading(false);
+      return;
+    }
+
     const fetchPrescription = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/prescriptions/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+    
+        const response = await fetch(`/api/prescriptions/patient/${prescriptionId}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        
-        if (!response.ok) throw new Error('Failed to fetch prescription');
+    
+        if (response.status === 401) {
+          // Token expired or invalid - redirect to login
+          handleLogout();
+          return;
+        }
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch prescription details');
+        }
+    
         const data = await response.json();
-        setPrescription(data);
+        if (!data.success) {
+          throw new Error('Failed to load prescription data');
+        }
+    
+        setPrescription(data.prescription);
+        
       } catch (error) {
-        console.error(error);
-        // router.push('/dashboard/doctor/prescriptions');
+        console.error('Fetch error:', error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPrescription();
-  }, [id, router]);
+  }, [router]);
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
@@ -41,7 +77,7 @@ export default function PrescriptionDetailPage() {
     <div className="flex justify-center items-center h-screen">
       <div className="text-center">
         <h3 className="text-lg font-medium text-gray-900">Prescription not found</h3>
-        <Link href="/dashboard/doctor/prescriptions" className="mt-4 text-indigo-600 hover:text-indigo-500">
+        <Link href="/dashboard/patient/prescriptions" className="mt-4 text-indigo-600 hover:text-indigo-500">
           Back to prescriptions list
         </Link>
       </div>
@@ -52,7 +88,7 @@ export default function PrescriptionDetailPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <Link href="/dashboard/doctor/prescriptions" className="inline-flex items-center text-indigo-600 hover:text-indigo-500">
+          <Link href="/dashboard/patient/prescriptions" className="inline-flex items-center text-indigo-600 hover:text-indigo-500">
             <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -91,14 +127,9 @@ export default function PrescriptionDetailPage() {
                 </dd>
               </div>
               <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Patient</dt>
+                <dt className="text-sm font-medium text-gray-500">Prescribed By</dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  <Link 
-                    href={`/dashboard/doctor/patients/${prescription.patient_id}`} 
-                    className="text-indigo-600 hover:text-indigo-500"
-                  >
-                    {prescription.patient_name}
-                  </Link>
+                  Dr. {prescription.doctor_name}
                 </dd>
               </div>
               <div className="sm:col-span-1">
@@ -133,37 +164,34 @@ export default function PrescriptionDetailPage() {
               Prescribed Medicines
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {prescription.medicines?.length || 0} medicines prescribed
+              {prescription.items?.length || 0} medicines prescribed
             </p>
           </div>
           <div className="px-4 py-5 sm:p-6">
-            {prescription.medicines && prescription.medicines.length > 0 ? (
+            {prescription.items && prescription.items.length > 0 ? (
               <ul className="divide-y divide-gray-200">
-                {prescription.medicines.map((medicine, index) => (
+                {prescription.items.map((item, index) => (
                   <li key={index} className="py-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{medicine.name}</p>
-                        <p className="text-sm text-gray-500">{medicine.dosage}</p>
+                        <p className="text-sm font-medium text-gray-900">{item.medicine_name}</p>
+                        <p className="text-sm text-gray-500">{item.dosage}</p>
                       </div>
-                      <div className="ml-2 flex-shrink-0 flex">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100"></span>
-                        </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs text-gray-500">Frequency</p>
-                        <p className="text-sm text-gray-900">{medicine.frequency}</p>
+                        <p className="text-sm text-gray-900">{item.frequency}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Duration</p>
-                        <p className="text-sm text-gray-900">{medicine.duration}</p>
+                        <p className="text-sm text-gray-900">{item.duration}</p>
                       </div>
                     </div>
-                    {medicine.instructions && (
+                    {item.instructions && (
                       <div className="mt-2">
                         <p className="text-xs text-gray-500">Special Instructions</p>
-                        <p className="text-sm text-gray-900 whitespace-pre-line">{medicine.instructions}</p>
+                        <p className="text-sm text-gray-900 whitespace-pre-line">{item.instructions}</p>
                       </div>
                     )}
                   </li>
@@ -181,7 +209,7 @@ export default function PrescriptionDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="mt-6 flex justify-end">
           <button
             onClick={() => window.print()}
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -191,15 +219,6 @@ export default function PrescriptionDetailPage() {
             </svg>
             Print Prescription
           </button>
-          <Link
-            href={`/dashboard/doctor/prescriptions/${id}/edit`}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit Prescription
-          </Link>
         </div>
       </div>
     </div>
