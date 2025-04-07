@@ -1,116 +1,107 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
 
 export async function POST(request) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
-  
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
   try {
-    // Verify token and get user data
-    const decoded = verifyToken(token);
-    
-    // Ensure the user is a doctor
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.role !== 'doctor') {
       return NextResponse.json({ error: 'Only doctors can create prescriptions' }, { status: 403 });
     }
 
-    // Parse request body
     const requestData = await request.json();
     console.log('Received data:', requestData);
-    
-    // Validate required fields for the prescription
-    if (!requestData.medicines[0].patient_id) {
-      return NextResponse.json({ 
-        error: 'Missing required fields', 
-        details: 'Patient ID is required' 
-      }, { status: 400 });
-    }
-    
-    // Validate that medicines array exists and isn't empty
-    if (!requestData.medicines || requestData.medicines.length === 0) {
-      return NextResponse.json({ 
-        error: 'Missing required fields', 
-        details: 'At least one medicine must be added' 
-      }, { status: 400 });
+
+    // Check if the data is in the expected format
+    if (!requestData.medicines || !Array.isArray(requestData.medicines) || requestData.medicines.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one medicine is required' },
+        { status: 400 }
+      );
     }
 
-    // Start a transaction
+    // Get patient_id from the first medicine entry
+    const patient_id = requestData.medicines[0].patient_id;
+    const diagnosis = requestData.diagnosis || '';
+    const notes = requestData.notes || '';
+
+    if (!patient_id) {
+      return NextResponse.json(
+        { error: 'Patient ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Start transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
-    
+
     try {
-      // Check if the patient exists
+      // Verify patient exists
       const [patients] = await connection.query(
-        'SELECT id FROM users WHERE id = ?',
-        [requestData.medicines[0].patient_id]
+        'SELECT id FROM users WHERE id = ? AND role = "patient"',
+        [patient_id]
       );
-      
+
       if (patients.length === 0) {
         await connection.rollback();
         connection.release();
-        return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Patient not found' },
+          { status: 404 }
+        );
       }
-      
+
       // Create a new prescription
       const [prescriptionResult] = await connection.query(
-        `INSERT INTO prescriptions 
-         (patient_id, doctor_id, diagnosis, notes, created_at, status) 
-         VALUES (?, ?, ?, ?, NOW(), 'active')`,
-        [
-          requestData.medicines[0].patient_id,
-          decoded.id,
-          requestData.diagnosis || '',
-          requestData.notes || ''
-        ]
+        `INSERT INTO prescriptions
+         (doctor_id, patient_id, diagnosis, notes)
+         VALUES (?, ?, ?, ?)`,
+        [decoded.id, patient_id, diagnosis, notes]
       );
-      
+
       const prescriptionId = prescriptionResult.insertId;
-      
-      // Add all medicines to the prescription
+      console.log('Created prescription with ID:', prescriptionId);
+
+      // Add medicines
       for (const medicine of requestData.medicines) {
+        console.log('Adding medicine:', medicine);
         await connection.query(
-          `INSERT INTO prescription_items 
-           (prescription_id, medicine_name, dosage, frequency, duration, instructions) 
+          `INSERT INTO prescription_items
+           (prescription_id, medicine_name, dosage, frequency, duration, instructions)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
             prescriptionId,
-            medicine.medicine_name, // Using the field name from your frontend
+            medicine.medicine_name,
             medicine.dosage,
             medicine.frequency || 'daily',
             medicine.duration || '7 days',
-            medicine.instructions || ''
+            medicine.instructions || null
           ]
         );
       }
-      
-      // Commit the transaction
+
       await connection.commit();
-      connection.release();
-      
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json({ 
         message: 'Prescription created successfully',
-        id: prescriptionId
-      }, { status: 201 });
-    } catch (transactionError) {
-      // If anything goes wrong, roll back the transaction
+        prescriptionId 
+      });
+    } catch (error) {
       await connection.rollback();
+      console.error('Prescription creation error:', error);
+      throw error;
+    } finally {
       connection.release();
-      throw transactionError;
     }
-    
   } catch (error) {
-    console.error('Prescription creation error:', error);
+    console.error('Error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to create prescription', 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: 'Failed to create prescription', details: error.message },
       { status: 500 }
     );
   }

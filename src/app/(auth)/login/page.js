@@ -34,6 +34,9 @@ export default function LoginPage() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
+      // Dispatch auth state change event
+      window.dispatchEvent(new Event('authStateChange'));
+
       // Redirect based on role
       switch (data.user.role) {
         case 'patient':

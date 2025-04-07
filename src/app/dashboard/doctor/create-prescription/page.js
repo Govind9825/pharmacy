@@ -79,7 +79,12 @@ export default function CreatePrescriptionPage() {
       }
 
       const data = await response.json();
-      router.push(`/dashboard/doctor/prescriptions/${data.id}`);
+      
+      if (!data.prescriptionId) {
+        throw new Error('Failed to get prescription ID from response');
+      }
+      
+      router.replace(`/dashboard/doctor/prescriptions/${data.prescriptionId}`);
     } catch (error) {
       console.error(error);
       setError(error.message);

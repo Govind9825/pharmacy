@@ -1,13 +1,16 @@
 import mysql from 'mysql2/promise';
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: 'bankingsystem.mysql.database.azure.com',
+  user: 'akshay202311006',
+  password: 'qaz123!@#',
+  database: 'pharmacy_system',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: true
+  }
 });
 
 // Test connection on startup

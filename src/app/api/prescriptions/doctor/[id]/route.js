@@ -4,49 +4,57 @@ import pool from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(request, { params }) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
-  const doctorId = params?.id;
-  
+  let connection;
   try {
+    // Get token from header
+    const token = request.headers.get('authorization')?.split(' ')[1];
     if (!token) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify token
     const decoded = verifyToken(token);
-    if (decoded.role !== 'doctor' || decoded.id.toString() !== doctorId) {
-      return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+    if (!decoded || decoded.role !== 'doctor') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const connection = await pool.getConnection();
-    
-    try {
-      const [prescriptions] = await connection.query(`
-        SELECT 
-          p.id,
-          p.patient_id,
-          u.name as patient_name,
-          p.diagnosis,
-          p.notes,
-          p.created_at,
-          DATEDIFF(NOW(), p.created_at) > 30 as is_expired
-        FROM prescriptions p
-        JOIN users u ON p.patient_id = u.id
-        WHERE p.doctor_id = ?
-        ORDER BY p.created_at DESC
-      `, [doctorId]);
+    // Get a connection from the pool
+    connection = await pool.getConnection();
 
-      return NextResponse.json(prescriptions);
-    } finally {
-      connection.release();
+    // Get doctor's prescriptions with patient names
+    const doctorId = await Promise.resolve(params.id);
+    const [prescriptions] = await connection.execute(
+      `SELECT p.id, p.diagnosis, p.notes, p.created_at,
+              u.name as patient_name, u.email as patient_email
+       FROM prescriptions p
+       JOIN users u ON p.patient_id = u.id
+       WHERE p.doctor_id = ?
+       ORDER BY p.created_at DESC`,
+      [doctorId]
+    );
+
+    // Get items for each prescription
+    for (const prescription of prescriptions) {
+      const [items] = await connection.execute(
+        `SELECT id, medicine_name, dosage, frequency, duration, instructions
+         FROM prescription_items
+         WHERE prescription_id = ?`,
+        [prescription.id]
+      );
+      prescription.items = items;
     }
+
+    return NextResponse.json(prescriptions);
+
   } catch (error) {
-    console.error('Prescriptions endpoint error:', error);
+    console.error('Error fetching doctor prescriptions:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch prescriptions',
-        details: process.env.NODE_ENV === 'development' ? error.message : null
-      },
+      { error: 'Failed to fetch prescriptions' },
       { status: 500 }
     );
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 }

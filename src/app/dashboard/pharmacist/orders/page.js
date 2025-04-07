@@ -2,11 +2,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Search, Filter, Check, X } from 'lucide-react';
 
-export default function PharmacistDashboard() {
+export default function PharmacistOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -69,10 +72,12 @@ export default function PharmacistDashboard() {
     }
   };
 
-  const formatPrice = (price) => {
-    if (!price) return '0.00';
-    return parseFloat(price).toFixed(2);
-  };
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.id.toString().includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || order.status.toLowerCase() === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) return <div>Loading...</div>;
 
@@ -81,7 +86,7 @@ export default function PharmacistDashboard() {
       <main className="py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Pharmacist Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           </div>
 
           {error && (
@@ -90,14 +95,43 @@ export default function PharmacistDashboard() {
             </div>
           )}
 
-          {orders.length === 0 ? (
+          <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div className="flex items-center">
+              <Filter className="h-5 w-5 text-gray-400 mr-2" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          {filteredOrders.length === 0 ? (
             <div className="px-4 py-5 sm:p-6">
               <p className="text-gray-500">No orders found</p>
             </div>
           ) : (
             <div className="border-t border-gray-200">
               <ul className="divide-y divide-gray-200">
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <li key={order.id} className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
@@ -108,13 +142,10 @@ export default function PharmacistDashboard() {
                           Patient: {order.patient_name}
                         </p>
                         <p className="mt-1 text-sm text-gray-500">
-                          Items: {order.item_count || 0}
+                          Items: {order.items?.length || 0}
                         </p>
                         <p className="mt-1 text-sm text-gray-500">
-                          Total: ${formatPrice(order.total_price)}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">
-                          Date: {new Date(order.order_date).toLocaleDateString()}
+                          Total: ${order.total_amount?.toFixed(2) || '0.00'}
                         </p>
                       </div>
                       <div className="ml-4 flex-shrink-0 flex items-center">
@@ -126,7 +157,8 @@ export default function PharmacistDashboard() {
                             onClick={() => handleProcessOrder(order.id)}
                             className="ml-4 inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                           >
-                            Process Order
+                            <Check className="h-4 w-4 mr-1" />
+                            Process
                           </button>
                         )}
                       </div>
@@ -140,4 +172,4 @@ export default function PharmacistDashboard() {
       </main>
     </div>
   );
-}
+} 
