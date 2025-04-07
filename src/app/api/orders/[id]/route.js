@@ -21,8 +21,7 @@ export async function GET(request, { params }) {
     // Fetch order details
     const [orders] = await connection.query(
       `SELECT o.*, u.name as pharmacist_name
-       FROM orders o
-       JOIN users u ON o.pharmacist_id = u.id
+       FROM orders o, users u
        WHERE o.id = ?`,
       [params.id]
     );

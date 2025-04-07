@@ -14,11 +14,13 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { doctorId, verify } = await request.json();
+    const { userId, verify } = await request.json();
+    console.log('Doctor ID:', userId);
+    console.log('Verify:', verify);
 
     await pool.query(
-      'UPDATE doctors SET is_verified = ? WHERE user_id = ?',
-      [verify, doctorId]
+      'UPDATE users SET is_verified = ? WHERE id = ?',
+      [verify, userId]
     );
 
     return NextResponse.json({ message: 'Doctor verification updated' });

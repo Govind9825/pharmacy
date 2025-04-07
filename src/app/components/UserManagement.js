@@ -30,6 +30,29 @@ export default function UserManagement({ users, doctors, pharmacists }) {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    setLoading(true);
+    try {
+
+      const response = await fetch(`/api/admin/delete/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to verify doctor');
+      }
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">
       <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -53,20 +76,20 @@ export default function UserManagement({ users, doctors, pharmacists }) {
                 <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap capitalize">{user.role}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {user.role === 'doctor' ? (
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.is_verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                  {/* {user.role === 'doctor' ? (
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
                       {user.is_verified ? 'Verified' : 'Pending'}
                     </span>
-                  ) : (
+                  ) : ( */}
+                  {(
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                      Active
+                      {user.is_verified ? 'Verified' : 'Not Verified'}
                     </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {user.role === 'doctor' && !user.is_verified && (
+                  {!user.is_verified && (
                     <button
                       onClick={() => handleVerifyDoctor(user.id, true)}
                       className="mr-2 text-sm text-white bg-green-600 px-3 py-1 rounded hover:bg-green-700"
@@ -75,12 +98,13 @@ export default function UserManagement({ users, doctors, pharmacists }) {
                       {loading ? 'Processing...' : 'Verify'}
                     </button>
                   )}
-                  <button 
+                  {/* <button
                     className="text-sm text-white bg-red-600 px-3 py-1 rounded hover:bg-red-700"
                     disabled={loading}
+                    onClick={() => handleDeleteUser(user.id)}
                   >
                     Delete
-                  </button>
+                  </button> */}
                 </td>
               </tr>
             ))}

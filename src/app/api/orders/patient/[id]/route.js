@@ -35,14 +35,12 @@ export async function GET(request, { params }) {
     // Fetch items for each order
     for (let order of orders) {
       const [items] = await connection.query(
-        `SELECT oi.*, pi.medicine_name, pi.dosage, pi.frequency, pi.duration, pi.instructions
-         FROM order_items oi
-         JOIN prescription_items pi ON oi.prescription_item_id = pi.id
-         WHERE oi.order_id = ?`,
-        [order.id]
+        `SELECT pi.medicine_name, pi.dosage, pi.frequency, pi.duration, pi.instructions
+         FROM prescription_items pi`
       );
       order.items = items;
     }
+    console.log('Fetched orders:', orders);
 
     return NextResponse.json(orders);
   } catch (error) {

@@ -79,13 +79,14 @@ export default function NewOrder() {
         },
         body: JSON.stringify({
           pharmacist_id: selectedPharmacist,
-          prescription_id: prescriptionId
+          prescription_id: prescriptionId,
+          patient_id: JSON.stringify(prescriptionDetails.patient_id) // Assuming this is available in prescriptionDetails
         })
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create order');
-      
+
       router.push('/dashboard/patient/orders');
     } catch (err) {
       console.error('Error creating order:', err);

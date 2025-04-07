@@ -83,7 +83,9 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    console.log(body);
     const { prescription_id } = body;
+    const { patient_id } = body;
 
     if (!prescription_id) {
       return NextResponse.json(
@@ -108,26 +110,26 @@ export async function POST(request) {
     }
 
     // Calculate total price from prescription items
-    const [items] = await connection.query(
-      `SELECT SUM(price) as total_price 
-       FROM prescription_items 
-       WHERE prescription_id = ?`,
-      [prescription_id]
-    );
+    // const [items] = await connection.query(
+    //   `SELECT SUM(price) as total_price 
+    //    FROM prescription_items 
+    //    WHERE prescription_id = ?`,
+    //   [prescription_id]
+    // );
 
-    const total_price = items[0].total_price || 0;
+    // const total_price = items[0].total_price || 0;
 
     // Create order
     const [result] = await connection.query(
-      `INSERT INTO orders (prescription_id, total_price, status) 
-       VALUES (?, ?, 'pending')`,
-      [prescription_id, total_price]
+      `INSERT INTO orders (prescription_id, patient_id, status) 
+       VALUES (?, ?,  'pending')`,
+      [prescription_id, patient_id]
     );
 
     return NextResponse.json({
       id: result.insertId,
       prescription_id,
-      total_price,
+      // total_price,
       status: 'pending'
     });
 

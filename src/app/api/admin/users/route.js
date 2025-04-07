@@ -28,6 +28,7 @@ export async function GET(request) {
           is_verified,
           created_at
         FROM users
+        Where role != 'admin'
         ORDER BY created_at DESC
       `);
 
