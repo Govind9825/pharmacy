@@ -1,23 +1,23 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function PatientDashboard() {
   const [user, setUser] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem("token");
+    const userData = JSON.parse(localStorage.getItem("user"));
 
-    if (!token || !userData || userData.role !== 'patient') {
-      router.push('/login');
+    if (!token || !userData || userData.role !== "patient") {
+      router.push("/login");
       return;
     }
 
@@ -27,27 +27,27 @@ export default function PatientDashboard() {
 
   const fetchFullPrescriptions = async (patientId) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/prescriptions/patient/${patientId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch prescriptions');
+        throw new Error(errorData.error || "Failed to fetch prescriptions");
       }
 
       const data = await response.json();
       const activePrescriptions = data.prescriptions.filter(
-        p => p.status === 'active' && !p.is_expired
+        (p) => p.status === "active" && !p.is_expired
       );
       setPrescriptions(activePrescriptions);
     } catch (err) {
       setError(err.message);
-      if (err.message.includes('Unauthorized')) {
+      if (err.message.includes("Unauthorized")) {
         handleLogout();
       }
     } finally {
@@ -70,12 +70,21 @@ export default function PatientDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/login');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/login");
   };
 
-  if (loading) return <div className="text-center py-8">Loading prescriptions...</div>;
+  const handleMakeOrder = () => {
+    if (selectedPrescription) {
+      router.push(
+        `/dashboard/patient/make-order?prescriptionId=${selectedPrescription.id}`
+      );
+    }
+  };
+
+  if (loading)
+    return <div className="text-center py-8">Loading prescriptions...</div>;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -84,7 +93,9 @@ export default function PatientDashboard() {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-indigo-600">PharmaCare</h1>
+                <h1 className="text-xl font-bold text-indigo-600">
+                  PharmaCare
+                </h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
@@ -118,7 +129,7 @@ export default function PatientDashboard() {
           <div className="px-4 py-8 sm:px-0">
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-2xl font-bold mb-6">Welcome, {user?.name}</h2>
-              
+
               {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
                   {error}
@@ -127,7 +138,9 @@ export default function PatientDashboard() {
 
               <div className="mb-8">
                 <div className="bg-indigo-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">Active Prescriptions</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    Active Prescriptions
+                  </h3>
                   <p className="text-3xl font-bold text-indigo-600">
                     {prescriptions.length}
                   </p>
@@ -135,12 +148,16 @@ export default function PatientDashboard() {
               </div>
 
               <div className="mt-8">
-                <h3 className="text-lg font-medium mb-4">Current Prescriptions</h3>
+                <h3 className="text-lg font-medium mb-4">
+                  Current Prescriptions
+                </h3>
                 {prescriptions.length === 0 ? (
                   <div className="bg-gray-50 p-4 rounded-lg text-center">
-                    <p className="text-gray-500">No active prescriptions found</p>
-                    <Link 
-                      href="/dashboard/patient/prescriptions" 
+                    <p className="text-gray-500">
+                      No active prescriptions found
+                    </p>
+                    <Link
+                      href="/dashboard/patient/prescriptions"
                       className="text-indigo-600 hover:text-indigo-800 mt-2 inline-block"
                     >
                       View all prescriptions
@@ -149,7 +166,10 @@ export default function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {prescriptions.map((prescription) => (
-                      <div key={prescription.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div
+                        key={prescription.id}
+                        className="border border-gray-200 rounded-lg overflow-hidden"
+                      >
                         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                           <div className="flex justify-between items-center">
                             <h4 className="font-medium text-indigo-600">
@@ -160,14 +180,21 @@ export default function PatientDashboard() {
                             </span>
                           </div>
                           <div className="mt-1 text-sm text-gray-500">
-                            Prescribed by Dr. {prescription.doctor_name} on {new Date(prescription.created_at).toLocaleDateString()}
+                            Prescribed by Dr. {prescription.doctor_name} on{" "}
+                            {new Date(
+                              prescription.created_at
+                            ).toLocaleDateString()}
                           </div>
                         </div>
                         <div className="p-4">
                           {prescription.diagnosis && (
                             <div className="mb-4">
-                              <h5 className="text-sm font-medium text-gray-700 mb-1">Diagnosis</h5>
-                              <p className="text-sm text-gray-600">{prescription.diagnosis}</p>
+                              <h5 className="text-sm font-medium text-gray-700 mb-1">
+                                Diagnosis
+                              </h5>
+                              <p className="text-sm text-gray-600">
+                                {prescription.diagnosis}
+                              </p>
                             </div>
                           )}
                           <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 text-right">
@@ -195,51 +222,95 @@ export default function PatientDashboard() {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-start">
-                <h2 className="text-2xl font-bold mb-4">Prescription Details</h2>
-                <button 
+                <h2 className="text-2xl font-bold mb-4">
+                  Prescription Details
+                </h2>
+                <button
                   onClick={handleCloseDetails}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Basic Information
+                  </h3>
                   <div className="mt-4 space-y-2">
-                    <p><span className="font-medium">Prescription ID:</span> #{selectedPrescription.id}</p>
-                    <p><span className="font-medium">Date Issued:</span> {new Date(selectedPrescription.created_at).toLocaleDateString()}</p>
-                    <p><span className="font-medium">Prescribed By:</span> Dr. {selectedPrescription.doctor_name}</p>
-                    <p><span className="font-medium">Status:</span> <span className="text-green-600">Active</span></p>
+                    <p>
+                      <span className="font-medium">Prescription ID:</span> #
+                      {selectedPrescription.id}
+                    </p>
+                    <p>
+                      <span className="font-medium">Date Issued:</span>{" "}
+                      {new Date(
+                        selectedPrescription.created_at
+                      ).toLocaleDateString()}
+                    </p>
+                    <p>
+                      <span className="font-medium">Prescribed By:</span> Dr.{" "}
+                      {selectedPrescription.doctor_name}
+                    </p>
+                    <p>
+                      <span className="font-medium">Status:</span>{" "}
+                      <span className="text-green-600">Active</span>
+                    </p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">Medical Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Medical Information
+                  </h3>
                   <div className="mt-4 space-y-2">
                     {selectedPrescription.diagnosis && (
-                      <p><span className="font-medium">Diagnosis:</span> {selectedPrescription.diagnosis}</p>
+                      <p>
+                        <span className="font-medium">Diagnosis:</span>{" "}
+                        {selectedPrescription.diagnosis}
+                      </p>
                     )}
                     {selectedPrescription.notes && (
-                      <p><span className="font-medium">Notes:</span> {selectedPrescription.notes}</p>
+                      <p>
+                        <span className="font-medium">Notes:</span>{" "}
+                        {selectedPrescription.notes}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
 
               <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Prescribed Medications</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Prescribed Medications
+                </h3>
                 {selectedPrescription.items?.length > 0 ? (
                   <div className="space-y-4">
                     {selectedPrescription.items.map((item, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div
+                        key={index}
+                        className="border border-gray-200 rounded-lg p-4"
+                      >
                         <div className="flex justify-between">
                           <div>
-                            <h4 className="font-medium">{item.medicine_name}</h4>
-                            <p className="text-sm text-gray-500">{item.dosage}</p>
+                            <h4 className="font-medium">
+                              {item.medicine_name}
+                            </h4>
+                            <p className="text-sm text-gray-500">
+                              {item.dosage}
+                            </p>
                           </div>
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-4">
@@ -254,8 +325,12 @@ export default function PatientDashboard() {
                         </div>
                         {item.instructions && (
                           <div className="mt-2">
-                            <p className="text-xs text-gray-500">Instructions</p>
-                            <p className="text-sm whitespace-pre-line">{item.instructions}</p>
+                            <p className="text-xs text-gray-500">
+                              Instructions
+                            </p>
+                            <p className="text-sm whitespace-pre-line">
+                              {item.instructions}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -266,13 +341,27 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-between mt-6">
                 <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  onClick={handleCloseDetails}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
-                  Print Prescription
+                  Close
                 </button>
+                <div className="space-x-3">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    Print Prescription
+                  </button>
+                  <button
+                    onClick={handleMakeOrder}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  >
+                    Make Order from This Prescription
+                  </button>
+                </div>
               </div>
             </div>
           </div>
